@@ -1,0 +1,63 @@
+:root{
+  --bg:#14100c; --panel:#221a12; --edge:#5a4426; --gold:#e3b54a; --gold2:#f6d983;
+  --ink:#f2e6cf; --dim:#a8977a; --green:#5fbf6a; --red:#d2533f;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;min-height:100%;background:var(--bg);color:var(--ink);font-family:Georgia,"Times New Roman",serif}
+body{display:flex;justify-content:center}
+#app{width:100%;max-width:640px;padding:10px 10px 24px;display:flex;flex-direction:column;gap:8px}
+h1{font-size:20px;margin:2px 0 6px;text-align:center;letter-spacing:.08em;color:var(--gold)}
+.hud{display:flex;gap:5px;font-size:12px}
+.hud div{flex:1;background:var(--panel);border:1px solid var(--edge);border-radius:8px;padding:5px 4px;text-align:center;color:var(--dim)}
+.hud b{display:block;color:var(--gold2);font-size:16px}
+#roomName{text-align:center;font-size:16px;color:var(--gold2);min-height:20px}
+#viewWrap{border:2px solid var(--edge);border-radius:10px;overflow:hidden;background:#000}
+#view{display:block;width:100%;height:auto;transition:opacity .2s}
+#view.fade{opacity:0}
+.hot{cursor:pointer}
+.hot:hover{filter:brightness(1.2)}
+#msg{min-height:38px;text-align:center;font-size:14px;padding:0 6px;line-height:1.35}
+.controls{display:flex;gap:8px}
+.controls button{flex:1}
+button{font-family:inherit;font-size:15px;color:var(--ink);background:#3a2a18;border:1px solid var(--edge);border-radius:8px;padding:11px 8px;cursor:pointer}
+button:active{transform:translateY(1px)}
+button:disabled{opacity:.45;cursor:default}
+button.primary{background:var(--gold);color:#2a1d0c;border-color:var(--gold2);font-weight:bold}
+button.gold{background:#6b4a12;border-color:var(--gold)}
+.bottom{display:flex;gap:10px;align-items:flex-start}
+#map{flex:0 0 55%;background:var(--panel);border:1px solid var(--edge);border-radius:8px;padding:5px}
+#map svg{display:block;width:100%;height:auto}
+.legend{flex:1;font-size:12px;color:var(--dim);line-height:1.6}
+.legend span{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:-1px}
+.legend .facing{font-size:14px;color:var(--ink)}
+.small{font-size:12px;color:var(--dim)}
+.overlay{position:fixed;inset:0;background:rgba(8,6,4,.84);display:none;align-items:center;justify-content:center;padding:14px;z-index:10;overflow:auto}
+.overlay.show{display:flex}
+.card{width:100%;max-width:500px;background:linear-gradient(#2c2116,#1e160e);border:2px solid var(--gold);border-radius:12px;padding:16px;box-shadow:0 10px 40px #000;margin:auto}
+.qhead{display:flex;justify-content:space-between;font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--gold)}
+.timer{height:6px;background:#3a2a18;border-radius:3px;margin:8px 0 0;overflow:hidden}
+.timer div{height:100%;width:100%;background:var(--gold);transition:width .25s linear}
+.timer.low div{background:var(--red)}
+.q{font-size:19px;margin:10px 0 14px;line-height:1.35}
+.opts{display:flex;flex-direction:column;gap:8px}
+.opts button{text-align:left;padding:12px}
+.opts button.right{background:#24502a;border-color:var(--green)}
+.opts button.wrong{background:#5a2219;border-color:var(--red)}
+.opts button.gone{visibility:hidden}
+.verdict{margin-top:10px;font-size:15px;min-height:20px}
+.row{display:flex;gap:8px;margin-top:12px}
+.row button{flex:1}
+.card h2{margin:0 0 8px;color:var(--gold);font-size:22px}
+.card p{line-height:1.5;margin:8px 0}
+.card img.wide{width:100%;border-radius:8px;display:block}
+.card img.portrait{float:left;width:84px;margin:0 12px 6px 0}
+.seg{display:flex;gap:6px;margin:6px 0 10px;flex-wrap:wrap}
+.seg button{flex:1;min-width:70px;padding:8px 4px;font-size:13px}
+.seg button.sel{background:var(--gold);color:#2a1d0c;font-weight:bold}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 10px}
+.chips button{padding:6px 9px;font-size:12px;border-radius:14px}
+.chips button.sel{background:#4c6b2a;border-color:var(--green)}
+.label{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--gold);margin-top:6px}
+table.scores{width:100%;border-collapse:collapse;font-size:14px}
+table.scores td{padding:3px 4px;border-bottom:1px solid #3a2a18}
+.seg button.sel .small{color:#5a3f12}

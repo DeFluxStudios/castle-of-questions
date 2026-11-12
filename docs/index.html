@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>Castle of Questions</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="app">
+  <header>
+    <h1>CASTLE OF QUESTIONS</h1>
+    <div class="hud">
+      <div>Score<b id="score">0</b></div>
+      <div>Floor<b id="floor">1/4</b></div>
+      <div>Keys<b id="keys">0</b></div>
+      <div>Hints<b id="hints">0</b></div>
+      <div>Right<b id="right">0/0</b></div>
+    </div>
+  </header>
+  <div id="roomName"></div>
+  <div id="viewWrap"><svg id="view" viewBox="0 0 800 520" xmlns="http://www.w3.org/2000/svg"></svg></div>
+  <div id="msg"></div>
+  <div class="controls">
+    <button id="bl">⟲ Left</button>
+    <button id="bf" class="primary">▲ Forward</button>
+    <button id="br">Right ⟳</button>
+  </div>
+  <div class="controls">
+    <button id="bb">↻ Turn around</button>
+    <button id="bs" class="gold" hidden>⇧ Climb stairs</button>
+    <button id="bm">☰ Menu</button>
+  </div>
+  <div class="bottom">
+    <div id="map"></div>
+    <div class="legend">
+      <div class="facing">Facing <b id="facing">N</b></div>
+      <div><span style="background:#e3b54a"></span>You</div>
+      <div><span style="background:#5fbf6a"></span>Open door</div>
+      <div><span style="background:#d2533f"></span>Locked door</div>
+      <div><span style="background:#8a5a2b"></span>Unanswered</div>
+      <div>⇧ Stairs up</div>
+      <div>☺ Someone to talk to</div>
+      <div class="small">Tap doors, people and paintings. Arrow keys work too.</div>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="qOv"><div class="card">
+  <div class="qhead"><span class="cat" id="qCat"></span><span class="lvl" id="qLvl"></span></div>
+  <div class="timer" id="qTimer"><div id="qBar"></div></div>
+  <div class="q" id="qText"></div>
+  <div class="opts" id="qOpts"></div>
+  <div class="verdict" id="qVerdict"></div>
+  <div class="row">
+    <button id="qHint">Use a hint</button>
+    <button class="primary" id="qOk" hidden>Continue</button>
+  </div>
+</div></div>
+
+<div class="overlay" id="infoOv"><div class="card" id="infoCard"></div></div>
+
+<script src="questions.js"></script>
+<script src="game.js"></script>
+</body>
+</html>
