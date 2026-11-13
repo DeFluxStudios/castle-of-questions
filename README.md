@@ -26,7 +26,7 @@ Controls: tap doors, people and paintings, or use the arrow keys (← → turn, 
   - **Fennick the Peddler** sells keys and hints for points.
   - The parrot, the cat and the wandering ghost hand out gifts.
 - **Sphinxes.** Every floor has a sphinx with a riddle (30 of them): answer for a key, a hint and points, miss and she takes a hint. On the top floor the **Great Sphinx** guards the stairs to the throne. You can retry, but each miss costs a toll.
-- **Quibble the Trickster** (floor 2 and up) offers a shortcut: three of the hardest questions in the castle, no hints. Win them all for a big bonus, a key and a free ride up a floor. Miss one and you're sent back to a brand-new floor 1, keeping your score, keys and hints.
+- **Quibble the Trickster** (on every floor) offers a shortcut: three of the hardest questions in the castle, no hints. Win them all for a big bonus, a key and a free ride up a floor. Miss one and you're sent back to a brand-new floor 1 (on floor 1, the floor is scrambled and you start over), keeping your score, keys and hints.
 - **Treasure chests** hold points, hints or keys. Beware: some are mimics that demand an answer.
 - **A wishing well** on each floor. Toss a coin and hope.
 - **A crooked painting** on each floor hides a clue to where the stairs are.

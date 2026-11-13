@@ -114,8 +114,8 @@ function makeFloor(size, number, entry, last) {
   chars[pool.pop()] = 'merchant';
   // a sphinx on every floor; on the last floor the Great Sphinx guards the stairs instead
   if (last) chars[exit] = 'sphinx'; else chars[pool.pop()] = 'sphinx';
-  // from floor 2 up, a trickster offers a dangerous shortcut
-  if (number > 0) chars[pool.pop()] = 'trickster';
+  // a trickster on every floor offers a dangerous shortcut
+  chars[pool.pop()] = 'trickster';
   // chests (some bite) and a wishing well, never in a room with someone in it
   const objects = {}, free = pool.filter(c => !chars[c]);
   const chestCount = Math.max(2, Math.round(N * 0.06));
@@ -157,6 +157,11 @@ function normalize(st) {
   const f = st.floors[st.floor];
   for (const [k, v] of Object.entries({ objects: {}, clue: -1, clueFound: false, quests: {}, revealed: false, guardPassed: false, last: false })) if (f[k] === undefined) f[k] = v;
   for (const [k, v] of Object.entries({ rdeck: [], wager: 0, riddles: 0 })) if (st[k] === undefined) st[k] = v;
+  if (!f.done && f.chars) {
+    const have = new Set(Object.values(f.chars));
+    const free = shuffle([...Array(f.size * f.size).keys()].filter(c => c !== f.entry && c !== f.exit && c !== st.pos && !f.chars[c] && !f.objects[c] && !f.keys.includes(c)));
+    for (const k of ['trickster', 'merchant', 'sphinx']) if (!have.has(k) && free.length) f.chars[free.pop()] = k;
+  }
   return st;
 }
 
@@ -176,10 +181,10 @@ function pickQuestion() {
   return Q[S.deck.pop()];
 }
 // The trickster only asks the hardest questions, drawn fresh each time.
-function pickHard() {
+function pickHard(seen) {
   const Q = window.QUESTIONS, cats = new Set(S.settings.cats);
-  let pool = Q.filter(q => q[1] === 4 && cats.has(q[0]));
-  if (pool.length < 3) pool = Q.filter(q => q[1] === 4);
+  let pool = Q.filter(q => q[1] === 4 && cats.has(q[0]) && !seen.includes(q[2]));
+  if (!pool.length) pool = Q.filter(q => q[1] === 4 && !seen.includes(q[2]));
   return pool[rnd(pool.length)];
 }
 function pickRiddle() {
@@ -462,7 +467,7 @@ const ACTS = {
   trickster(n) {
     if (n.done) return n.card(`${n.line}<p>“You've had your game. Off you go, before I change my mind.”</p>`);
     const prize = 1000 * lvl(), up = !n.f.last;
-    n.card(`<p>Quibble flips a coin that never seems to land.</p><p>“A game! Three questions, the <b>hardest</b> in the castle. No hints. Get all three and I'll give you ${prize} points and a key${up ? ', and whisk you straight up to the next floor' : ''}.”</p><p>“Miss even one, and… <b>poof!</b> Back to the very first floor you go. Fresh castle, same score. Heh heh.”</p>`,
+    n.card(`<p>Quibble flips a coin that never seems to land.</p><p>“A game! Three questions, the <b>hardest</b> in the castle. No hints. Get all three and I'll give you ${prize} points and a key${up ? ', and whisk you straight up to the next floor' : ''}.”</p><p>“Miss even one, and… <b>poof!</b> ${S.floor ? 'Back to the very first floor you go' : 'I scramble this whole floor and drop you at the start of it'}. Fresh castle, same score. Heh heh.”</p>`,
       [['Play', () => trick(n, 1)], ['No way', null]]);
   },
 
@@ -491,8 +496,9 @@ const ACTS = {
   }
 };
 
-function trick(n, round) {
-  const [cat, ql, text, answer, ...wrong] = pickHard();
+function trick(n, round, seen = []) {
+  const [cat, ql, text, answer, ...wrong] = pickHard(seen);
+  seen.push(text);
   quiz({ head: window.CATEGORIES[cat], sub: `Trickster · ${round} of 3`, text, answer, wrong, timed: true, hint: false, onAnswer(ok, picked) {
     S.answered++;
     if (!ok) {
@@ -500,7 +506,7 @@ function trick(n, round) {
       return [`<span style="color:var(--red)">${picked === null ? 'Too slow!' : '“Wrong!”'}</span> The answer was <b>${answer}</b>. Quibble snaps his fingers…`, sendBack];
     }
     S.correct++;
-    if (round < 3) return [`<span style="color:var(--green)">“Lucky guess.”</span> Two-thirds of the way to glory. ${3 - round} to go.`, () => trick(n, round + 1)];
+    if (round < 3) return [`<span style="color:var(--green)">“Lucky guess.”</span> Two-thirds of the way to glory. ${3 - round} to go.`, () => trick(n, round + 1, seen)];
     n.finish();
     const got = [award('points', 1000 * lvl()), award('key', 1)].join(', ');
     if (n.f.last) return [`<span style="color:var(--green)">“Bah! All three!”</span> ${got}.`];
