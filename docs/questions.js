@@ -305,3 +305,37 @@ window.QUESTIONS = [
 ["SH",4,"Which sport is played at the Tour de France?","Cycling","Running","Rowing","Motor racing"],
 ["SH",4,"What is the study and collecting of flags called?","Vexillology","Heraldry","Philately","Sigillography"]
 ];
+
+// Sphinx riddles. Each entry: [riddle, correct answer, wrong, wrong, wrong]
+window.RIDDLES = [
+["The more of me you take, the more you leave behind. What am I?","Footsteps","Memories","Breaths","Coins"],
+["I have keys but open no locks, space but no room, and you can enter but never go inside. What am I?","A keyboard","A castle","A map","A piano"],
+["What has a neck but no head, and wears a cap?","A bottle","A shirt","A giraffe","A candle"],
+["What gets wetter the more it dries?","A towel","A sponge","A river","Rain"],
+["I speak without a mouth and hear without ears. I have no body, but I come alive with the wind. What am I?","An echo","A ghost","A flag","A whistle"],
+["What has hands but cannot clap?","A clock","A statue","A glove","A tree"],
+["What can travel around the world while staying in a corner?","A stamp","A spider","The moon","A shadow"],
+["What has many teeth but cannot bite?","A comb","A shark","A saw","A zipper"],
+["The more there is of me, the less you see. What am I?","Darkness","Fog","Light","Smoke"],
+["What runs but never walks, has a mouth but never talks, has a bed but never sleeps?","A river","A clock","A road","The wind"],
+["What has one eye but cannot see?","A needle","A cyclops","A storm","A potato"],
+["What belongs to you, yet others use it more than you do?","Your name","Your shadow","Your house","Your voice"],
+["What can you catch but not throw?","A cold","A ball","A fish","A glance"],
+["I am full of holes but still hold water. What am I?","A sponge","A net","A sieve","A bucket"],
+["What has a head and a tail but no body?","A coin","A snake","A comet","A tadpole"],
+["What goes up but never comes down?","Your age","A balloon","Smoke","A kite"],
+["What word is spelled incorrectly in every dictionary?","Incorrectly","Dictionary","Wrong","Misspelled"],
+["What can fill a room but takes up no space?","Light","Air","Furniture","Water"],
+["What is always in front of you but can't be seen?","The future","Your nose","The air","Tomorrow's weather"],
+["What has four legs in the morning, two at noon, and three in the evening?","A person","A dog","A table","A bird"],
+["If you have me, you want to share me. If you share me, you no longer have me. What am I?","A secret","A cake","A coin","A song"],
+["What has cities but no houses, forests but no trees, and water but no fish?","A map","A painting","A dream","A desert"],
+["What breaks yet never falls, and what falls yet never breaks?","Day and night","Glass and rain","Waves and leaves","Hearts and snow"],
+["What can be cracked, made, told and played?","A joke","An egg","A code","A drum"],
+["I have branches but no fruit, trunk or leaves. What am I?","A bank","A river delta","A deer","A family"],
+["What comes once in a minute, twice in a moment, but never in a thousand years?","The letter M","A second","A blink","A heartbeat"],
+["Forward I am heavy, backward I am not. What am I?","Ton","Stone","Lead","Anvil"],
+["What disappears as soon as you say its name?","Silence","A ghost","A shadow","A wish"],
+["What kind of room has no doors or windows?","A mushroom","A dungeon","A tomb","A closet"],
+["What has 13 hearts but no other organs?","A deck of cards","A hydra","An orchard","A love song"]
+];

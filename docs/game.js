@@ -28,9 +28,20 @@ const CHARS = {
   parrot:    { name: 'Captain Squawk', lines: ['Squawk! Pieces of eight! Pieces of eight!', 'Squawk! The answer is… squawk! I forget.', 'Pretty bird! Clever traveler!'] },
   owl:       { name: 'Professor Hoot', lines: ['Whoo goes there? A scholar, I hope.', 'I study at night. You should try it.', 'Wisdom favors the well-read.'] },
   cat:       { name: 'Mouser', lines: ['Mrrrow. (The cat ignores you magnificently.)', 'Purr. (The cat seems to approve of you.)', 'The cat blinks slowly. You feel encouraged.'] },
-  ghost:     { name: 'The Grey Lady', lines: ['Ooooh… I have wandered these halls for centuries.', 'Ooooh… so many questions I never answered…', 'I drift where I please. Perhaps we shall meet again.'] }
+  ghost:     { name: 'The Grey Lady', lines: ['Ooooh… I have wandered these halls for centuries.', 'Ooooh… so many questions I never answered…', 'I drift where I please. Perhaps we shall meet again.'] },
+  merchant:  { name: 'Fennick the Peddler', lines: ['Keys! Hints! Finest wares this side of the moat!', 'Everything has a price, friend. Even wisdom.', 'Psst. Buying or browsing?'] },
+  trickster: { name: 'Quibble the Trickster', lines: ['Heh heh. Fancy a game with real stakes?', 'Everyone loves a shortcut. Few survive mine.', 'I only ask the hard ones. The easy ones bore me.'] },
+  sphinx:    { name: 'The Sphinx', lines: ['Mortal. Few pass me with their pride intact.', 'I have asked riddles since before this castle had walls.', 'Think carefully. I can smell a guess.'] }
 };
-const CHAR_KINDS = Object.keys(CHARS);
+// Residents spread through each floor. The ghost, merchant and sphinx are placed separately.
+const REGULARS = ['jester', 'knight', 'wizard', 'monk', 'cook', 'bard', 'lady', 'alchemist', 'parrot', 'owl', 'cat'];
+// Residents who have lost something and will reward you for finding it.
+const QUESTS = {
+  cook:   { item: 'ladle',  name: 'golden ladle',      ask: 'My golden ladle! Some scamp has run off with it. It must be somewhere on this floor. Find it and I shall reward you handsomely.' },
+  monk:   { item: 'book',   name: 'book of hours',     ask: 'I set down my book of hours and now it is gone. Could you look for it on this floor? I would be most grateful.' },
+  lady:   { item: 'ring',   name: 'sapphire ring',     ask: 'My sapphire ring slipped from my finger while I wandered. It is somewhere on this floor. Would you find it for me?' },
+  knight: { item: 'helmet', name: 'plumed helmet',     ask: 'A knight without his helmet! I left it in some room on this floor and cannot recall which. Be a friend and fetch it?' }
+};
 const PAINT_KIND = ['landscape', 'sunset', 'lake', 'sea', 'stilllife', 'geometric'];
 const PAINT_TITLES = {
   landscape: ['Morning in the Hills', 'The High Pasture', 'Pines Beneath the Peak', 'A Quiet Valley'],
@@ -67,7 +78,7 @@ function door(c, d) { const n = neighbor(c, d); if (n < 0) return NONE; const v 
 function setDoor(c, d, v) { F().edges[ek(c, neighbor(c, d))] = v; }
 
 // ------------------------------------------------------------ castle generation
-function makeFloor(size, number, entry) {
+function makeFloor(size, number, entry, last) {
   const N = size * size, edges = {};
   const seen = new Array(N).fill(false), stack = [entry];
   const nb = (c, d) => { const x = c % size + DX[d], y = Math.floor(c / size) + DY[d]; return (x < 0 || y < 0 || x >= size || y >= size) ? -1 : y * size + x; };
@@ -97,33 +108,56 @@ function makeFloor(size, number, entry) {
   const keyCount = Math.max(1, Math.round(size / 3));
   const keys = pool.splice(0, keyCount);
   const chars = {};
-  const charCount = Math.round(N * 0.12);
-  for (let i = 0; i < charCount && pool.length; i++) chars[pool.pop()] = CHAR_KINDS[i % (CHAR_KINDS.length - 1)];
+  const charCount = Math.round(N * 0.12), cast = shuffle(REGULARS.slice());
+  for (let i = 0; i < charCount && pool.length; i++) chars[pool.pop()] = cast[i % cast.length];
   chars[pool.pop()] = 'ghost';
+  chars[pool.pop()] = 'merchant';
+  // a sphinx on every floor; on the last floor the Great Sphinx guards the stairs instead
+  if (last) chars[exit] = 'sphinx'; else chars[pool.pop()] = 'sphinx';
+  // from floor 2 up, a trickster offers a dangerous shortcut
+  if (number > 0) chars[pool.pop()] = 'trickster';
+  // chests (some bite) and a wishing well, never in a room with someone in it
+  const objects = {}, free = pool.filter(c => !chars[c]);
+  const chestCount = Math.max(2, Math.round(N * 0.06));
+  for (let i = 0; i < chestCount && free.length; i++) objects[free.pop()] = { type: 'chest', mimic: Math.random() < 0.25 };
+  if (free.length) objects[free.pop()] = { type: 'well' };
   const paintings = {};
   for (let i = 0; i < N; i++) if (Math.random() < 0.55) paintings[i] = rnd(PAINTINGS);
+  // one painting per floor hangs crooked and hides a clue
+  const hung = Object.keys(paintings).map(Number).filter(c => c !== exit && c !== entry);
+  const clue = hung.length ? hung[rnd(hung.length)] : -1;
   const names = [];
   for (let i = 0; i < N; i++) names.push(`the ${ROOM_ADJ[rnd(ROOM_ADJ.length)]} ${ROOM_NOUN[rnd(ROOM_NOUN.length)]}`);
-  return { size, number, theme: THEMES[number % THEMES.length], edges, entry, exit, keys, chars, talked: [], paintings, names, visited: [entry] };
+  return { size, number, last: !!last, theme: THEMES[number % THEMES.length], edges, entry, exit, keys, chars, talked: [], paintings, names, visited: [entry],
+           objects, clue, clueFound: false, quests: {}, revealed: false, guardPassed: false };
 }
 
 function newGame() {
   const m = MODES[settings.mode];
-  const corners = [0, m.size - 1, m.size * (m.size - 1), m.size * m.size - 1];
   S = {
     v: 2, settings: JSON.parse(JSON.stringify(settings)),
-    floors: [makeFloor(m.size, 0, corners[rnd(4)])], floor: 0, totalFloors: m.floors,
+    floors: [makeFloor(m.size, 0, randomCorner(m.size), m.floors === 1)], floor: 0, totalFloors: m.floors,
     facing: 0, score: 0, keys: 1, hints: 1, answered: 0, correct: 0, streak: 0, best: 0,
-    deck: [], over: false, started: Date.now()
+    deck: [], rdeck: [], wager: 0, riddles: 0, over: false, started: Date.now()
   };
   S.pos = F().entry; S.facing = faceInward(S.pos);
   persist(); render();
   say(`You stand in ${F().names[S.pos]}. Find the staircase up; it marks itself ⇧ on your map once you've found it. Talk to the people you meet. Some will help.`);
 }
 
+function randomCorner(n) { return [0, n - 1, n * (n - 1), n * n - 1][rnd(4)]; }
+
 function faceInward(c) {
   const n = F().size, x = c % n, y = Math.floor(c / n);
   return y < n / 2 ? 2 : 0;
+}
+
+// Older saves predate sphinxes, chests and quests: fill in what is missing.
+function normalize(st) {
+  const f = st.floors[st.floor];
+  for (const [k, v] of Object.entries({ objects: {}, clue: -1, clueFound: false, quests: {}, revealed: false, guardPassed: false, last: false })) if (f[k] === undefined) f[k] = v;
+  for (const [k, v] of Object.entries({ rdeck: [], wager: 0, riddles: 0 })) if (st[k] === undefined) st[k] = v;
+  return st;
 }
 
 function persist() { if (S && !S.over) saveJSON(SAVE_KEY, S); }
@@ -140,6 +174,17 @@ function pickQuestion() {
     S.deck = [...new Set(S.deck)];
   }
   return Q[S.deck.pop()];
+}
+// The trickster only asks the hardest questions, drawn fresh each time.
+function pickHard() {
+  const Q = window.QUESTIONS, cats = new Set(S.settings.cats);
+  let pool = Q.filter(q => q[1] === 4 && cats.has(q[0]));
+  if (pool.length < 3) pool = Q.filter(q => q[1] === 4);
+  return pool[rnd(pool.length)];
+}
+function pickRiddle() {
+  if (!S.rdeck.length) S.rdeck = shuffle([...window.RIDDLES.keys()]);
+  return window.RIDDLES[S.rdeck.pop()];
 }
 
 // ------------------------------------------------------------ rendering
@@ -171,12 +216,19 @@ function render() {
   </defs>
   <image href="assets/room_${f.theme}.jpg" x="0" y="0" width="800" height="520"/>`;
   if (f.paintings[c] !== undefined) {
-    svg += `<image class="hot" data-paint="1" href="assets/painting_${String(f.paintings[c]).padStart(2, '0')}.png" x="352" y="112" width="96" height="70"/>`;
+    const tilt = c === f.clue && !f.clueFound ? ' transform="rotate(-7 400 147)"' : '';
+    svg += `<image class="hot" data-paint="1"${tilt} href="assets/painting_${String(f.paintings[c]).padStart(2, '0')}.png" x="352" y="112" width="96" height="70"/>`;
   }
   svg += doorSvg(0, door(c, L)) + doorSvg(1, door(c, fc)) + doorSvg(2, door(c, R));
   if (c === f.exit) svg += `<image class="hot" data-stairs="1" href="assets/stairs.png" x="196" y="282" width="134" height="124"/>`;
+  const ob = f.objects[c];
+  if (ob && ob.type === 'chest') svg += `<image class="hot" data-obj="1" href="assets/chest_${!ob.opened ? 'closed' : ob.mimic ? 'mimic' : 'open'}.png" x="196" y="318" width="140" height="112"/>`;
+  if (ob && ob.type === 'well') svg += `<image class="hot" data-obj="1" href="assets/well.png" x="186" y="276" width="160" height="160"/>`;
+  for (const q of Object.values(f.quests)) if (q.at === c && !q.have) svg += `<image class="hot" data-item="1" href="assets/item_${QUESTS[q.kind].item}.png" x="364" y="404" width="72" height="72"/>`;
   if (f.chars[c]) svg += `<image class="hot" data-char="1" href="assets/char_${f.chars[c]}.png" x="482" y="276" width="126" height="168"/>`;
   $('view').innerHTML = svg;
+  $('view').querySelectorAll('[data-obj]').forEach(g => g.addEventListener('click', useObject));
+  $('view').querySelectorAll('[data-item]').forEach(g => g.addEventListener('click', () => { pickUp(); render(); }));
   $('view').querySelectorAll('[data-door]').forEach(g => g.addEventListener('click', () => tryDoor(+g.dataset.door)));
   $('view').querySelectorAll('[data-char]').forEach(g => g.addEventListener('click', talk));
   $('view').querySelectorAll('[data-paint]').forEach(g => g.addEventListener('click', viewPainting));
@@ -200,7 +252,8 @@ function renderMap() {
   for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) {
     const c = y * n + x, v = vis.has(c);
     s += `<rect x="${pad + x * cs + 2}" y="${pad + y * cs + 2}" width="${cs - 4}" height="${cs - 4}" rx="3" fill="${v ? '#4a3a26' : '#1a140e'}" stroke="#3a2c1c"/>`;
-    if (v && f.chars[c] && c !== S.pos) s += `<text x="${pad + x * cs + cs / 2}" y="${pad + y * cs + cs / 2 + 5}" font-size="13" text-anchor="middle" fill="#cdb98f">☺</text>`;
+    const glyph = f.chars[c] === 'sphinx' ? '☥' : f.chars[c] === 'trickster' ? '?' : f.chars[c] ? '☺' : f.objects[c] && f.objects[c].type === 'well' ? '◎' : f.objects[c] && !f.objects[c].opened ? '▣' : '';
+    if (v && glyph && c !== S.pos && c !== f.exit) s += `<text x="${pad + x * cs + cs / 2}" y="${pad + y * cs + cs / 2 + 5}" font-size="13" text-anchor="middle" fill="${glyph === '☥' ? '#f6d983' : '#cdb98f'}">${glyph}</text>`;
   }
   const col = { 1: '#8a5a2b', 2: '#5fbf6a', 3: '#d2533f' };
   for (const k in f.edges) {
@@ -211,7 +264,7 @@ function renderMap() {
     s += ay === by ? `<rect x="${mx - 3}" y="${my - 6}" width="6" height="12" fill="${col[f.edges[k]]}" rx="1"/>`
                    : `<rect x="${mx - 6}" y="${my - 3}" width="12" height="6" fill="${col[f.edges[k]]}" rx="1"/>`;
   }
-  if (vis.has(f.exit)) {
+  if (vis.has(f.exit) || f.revealed) {
     const ex = f.exit % n, ey = Math.floor(f.exit / n);
     s += `<text x="${pad + ex * cs + cs / 2}" y="${pad + ey * cs + cs / 2 + 6}" font-size="17" text-anchor="middle" fill="#f6d983" font-weight="bold">⇧</text>`;
   }
@@ -256,9 +309,14 @@ function walk(d) {
     const ki = f.keys.indexOf(S.pos);
     if (ki >= 0) { f.keys.splice(ki, 1); S.keys++; S.score += 50; m += ' A brass key glints on the floor. You take it. (+50)'; }
     moveGhost();
+    const ob = f.objects[S.pos];
     if (f.chars[S.pos]) m += ` ${CHARS[f.chars[S.pos]].name} is here.`;
-    if (S.pos === f.exit) m += ' A staircase leads up!';
+    if (ob && ob.type === 'chest' && !ob.opened) m += ' A treasure chest sits against the wall.';
+    if (ob && ob.type === 'well') m += ' A wishing well burbles in the corner.';
+    if (Object.values(f.quests).some(q => q.at === S.pos && !q.have)) m += ' Something glints on the floor!';
+    if (S.pos === f.exit) m += f.last && !f.guardPassed ? ' A staircase leads up, but the Sphinx guards it.' : ' A staircase leads up!';
     persist(); render(); $('view').classList.remove('fade'); busy = false; say(m);
+    checkTrapped();
   }, 200);
 }
 
@@ -271,89 +329,320 @@ function moveGhost() {
   delete f.chars[c]; f.chars[n] = 'ghost';
 }
 
+// ------------------------------------------------------------ residents
+const lvl = () => S.settings.level;
+function award(kind, n) {
+  if (kind === 'key') { S.keys += n; return `+${n} key${n > 1 ? 's' : ''}`; }
+  if (kind === 'hint') { S.hints += n; return `+${n} hint${n > 1 ? 's' : ''}`; }
+  S.score += n; return `+${n} points`;
+}
+function fine(n) { const t = Math.min(S.score, n); S.score -= t; return t; }
+function bearing(from, to) {
+  const n = F().size, dx = to % n - from % n, dy = Math.floor(to / n) - Math.floor(from / n);
+  const parts = [dy < 0 ? 'north' : dy > 0 ? 'south' : '', dx < 0 ? 'west' : dx > 0 ? 'east' : ''].filter(Boolean);
+  return parts.join('-') || 'right here';
+}
+
 function talk() {
   if (blocked()) return;
-  const f = F(), kind = f.chars[S.pos], ch = CHARS[kind];
-  const key = kind + '@' + S.pos;
-  let gift = '';
-  if (!f.talked.includes(kind === 'ghost' ? 'ghost' : key)) {
-    f.talked.push(kind === 'ghost' ? 'ghost' : key);
-    const r = Math.random();
-    if (kind === 'ghost' || r < 0.18) { S.keys++; gift = `<p><b>${ch.name} gives you a key.</b></p>`; }
-    else if (r < 0.7) { S.hints++; gift = `<p><b>${ch.name} whispers a secret: +1 hint.</b> A hint removes two wrong answers.</p>`; }
-    else { S.score += 100 * S.settings.level; gift = `<p><b>${ch.name} cheers you on: +${100 * S.settings.level} points.</b></p>`; }
-  }
-  const line = ch.lines[rnd(ch.lines.length)];
+  const f = F(), c = S.pos, kind = f.chars[c], ch = CHARS[kind];
+  const tag = kind === 'ghost' ? 'ghost' : kind + '@' + c;
+  const head = `<img class="portrait" src="assets/char_${kind}.png" alt=""><h2>${ch.name}</h2>`;
+  ACTS[kind]({
+    f, c, kind, ch, done: f.talked.includes(tag),
+    line: `<p>“${ch.lines[rnd(ch.lines.length)]}”</p>`,
+    finish() { if (!f.talked.includes(tag)) f.talked.push(tag); persist(); render(); },
+    card(body, btns) { info(head + body + '<div style="clear:both"></div>', btns || [['Farewell', null]]); }
+  });
+}
+
+// What each resident does when you talk to them. Most help once; the merchant trades for as long as you can pay.
+function giftAct(n) {
+  if (n.done) return n.card(n.line);
+  n.finish();
+  const r = Math.random();
+  let gift;
+  if (n.kind === 'ghost' || r < 0.18) { award('key', 1); gift = `<b>${n.ch.name} gives you a key.</b>`; }
+  else if (r < 0.7) { award('hint', 1); gift = `<b>${n.ch.name} whispers a secret: +1 hint.</b> A hint removes two wrong answers.`; }
+  else gift = `<b>${n.ch.name} cheers you on: ${award('points', 100 * lvl())}.</b>`;
   persist(); render();
-  info(`<img class="portrait" src="assets/char_${kind}.png" alt=""><h2>${ch.name}</h2><p>“${line}”</p>${gift}<div style="clear:both"></div>`, [['Farewell', null]]);
+  n.card(`${n.line}<p>${gift}</p>`);
+}
+
+function questAct(n) {
+  const Q = QUESTS[n.kind], q = n.f.quests[n.c];
+  if (!q) return n.card(`<p>“${Q.ask}”</p>`, [['I will look for it', () => {
+    const taken = new Set([n.f.entry, n.f.exit, S.pos, ...Object.keys(n.f.chars).map(Number), ...Object.keys(n.f.objects).map(Number), ...Object.values(n.f.quests).map(x => x.at)]);
+    const all = [...Array(n.f.size * n.f.size).keys()].filter(i => !taken.has(i));
+    const fresh = all.filter(i => !n.f.visited.includes(i));
+    const pick = fresh.length ? fresh : all;
+    n.f.quests[n.c] = { kind: n.kind, at: pick[rnd(pick.length)], have: false, done: false };
+    persist(); render(); say(`You promise to look for the ${Q.name}. It is somewhere on this floor.`);
+  }], ['Not now', null]]);
+  if (q.done) return n.card(`${n.line}<p>“Thank you again for finding my ${Q.name}!”</p>`);
+  if (!q.have) return n.card(`<p>“Any luck finding my ${Q.name}? It is somewhere on this floor, I am sure of it.”</p>`);
+  q.done = true;
+  const got = [award('key', 1), award('points', 250 * lvl())].join(', ');
+  n.finish();
+  n.card(`<p>“My ${Q.name}! You found it! Here, take this for your trouble.”</p><p><b>${got}.</b></p>`);
+}
+
+const CUPS = `<svg viewBox="0 0 300 90" style="display:block;width:100%;max-width:300px;margin:8px auto">${[50, 150, 250].map((x, i) =>
+  `<path d="M${x - 34},80 L${x - 24},14 Q${x},4 ${x + 24},14 L${x + 34},80 Z" fill="#7a3a8c" stroke="#e3b54a" stroke-width="3"/><text x="${x}" y="58" text-anchor="middle" font-size="22" fill="#f6d983" font-family="Georgia">${'ABC'[i]}</text>`).join('')}</svg>`;
+
+const ACTS = {
+  parrot: giftAct, cat: giftAct, ghost: giftAct,
+  cook: questAct, monk: questAct, lady: questAct, knight: questAct,
+
+  jester(n) {
+    if (n.done) return n.card(`${n.line}<p>“You've had your go! My peas need a rest.”</p>`);
+    const play = i => {
+      n.finish();
+      const prize = rnd(3), crumb = (prize + 1 + rnd(2)) % 3;
+      const what = ['key', 'hint', 'hint', 'points'][rnd(4)];
+      let res;
+      if (i === prize) res = `<b>The pea! You win: ${what === 'points' ? award('points', 200 * lvl()) : award(what, 1)}.</b>`;
+      else if (i === crumb) res = `Only a crumb of cheese. Pip gives you a pity prize: <b>${award('points', 25 * lvl())}</b>. The pea was under cup ${'ABC'[prize]}.`;
+      else res = `Empty! A toad hops out and croaks at you. The pea was under cup ${'ABC'[prize]}.`;
+      persist(); render();
+      n.card(`<p>You lift cup ${'ABC'[i]}…</p><p>${res}</p>`);
+    };
+    n.card(`<p>“A game! A game! I hide a pea under one cup, shuffle-shuffle-shuffle… Pick the right cup and win a prize!”</p>${CUPS}`,
+      [['A', () => play(0)], ['B', () => play(1)], ['C', () => play(2)], ['No thanks', null]]);
+  },
+
+  wizard(n) {
+    if (n.done) return n.card(`${n.line}<p>“The rune will fade when you leave this floor. Use it well.”</p>`);
+    n.f.revealed = true; n.finish();
+    n.card(`<p>Magister Orrin traces a glowing rune in the air. The walls seem to turn to glass for an instant.</p><p><b>The staircase is now marked ⇧ on your map.</b> It lies to the ${bearing(n.c, n.f.exit)}.</p>`);
+  },
+
+  owl(n) {
+    if (n.done) return n.card(n.line);
+    n.card(`<p>“Whoo! A scholar! Answer one question for me. Get it right and I shall teach you a trick. Get it wrong and… well, no harm done.”</p>`, [['Ask away', () => {
+      const [cat, ql, text, answer, ...wrong] = pickQuestion();
+      quiz({ head: window.CATEGORIES[cat], sub: 'Professor Hoot asks', text, answer, wrong, timed: false, hint: false, onAnswer(ok) {
+        n.finish();
+        return ok ? [`<span style="color:var(--green)">“Splendid!”</span> ${award('hint', 1)}, ${award('points', 50 * lvl())}.`]
+                  : [`<span style="color:var(--red)">“Hoo, not quite.”</span> The answer was <b>${answer}</b>. The owl ruffles its feathers kindly.`];
+      } });
+    }], ['Maybe later', null]]);
+  },
+
+  bard(n) {
+    if (S.wager) return n.card(`<p>“Our wager stands! The next door decides it. I've already rhymed both endings.”</p>`);
+    if (n.done) return n.card(n.line);
+    const bet = 150 * lvl();
+    n.card(`<p>“A wager for my ballad! I bet <b>${bet} points</b> that you get the <i>next</i> door wrong. Answer it right and I pay you. Get it wrong and you pay me.”</p>`,
+      [['Take the bet', () => { S.wager = bet; n.finish(); say(`You shake hands with Wren. ${bet} points ride on your next door.`); }], ['Decline', null]]);
+  },
+
+  alchemist(n) {
+    if (n.done) return n.card(`${n.line}<p>“One potion per customer. Doctor's orders. I am the doctor.”</p>`);
+    n.card(`<p>Old Varro holds out a fizzing green flask. “My latest brew! Probably safe. Care to try it?”</p>`, [['Drink it', () => {
+      n.finish();
+      const r = Math.random();
+      const res = r < 0.35 ? `Your mind feels razor sharp. <b>${award('hint', 2)}.</b>`
+        : r < 0.55 ? `You hiccup, and a brass key pops out of your mouth! <b>${award('key', 1)}.</b>`
+        : r < 0.8 ? `Your purse feels heavier. <b>${award('points', 150 * lvl())}.</b>`
+        : 'You turn faintly green, burp a bubble, and feel… exactly the same. “Hmm. Back to the cauldron.”';
+      persist(); render();
+      n.card(`<p>${res}</p>`);
+    }], ['No thank you', null]]);
+  },
+
+  merchant(n) {
+    const kp = 250 * lvl(), hp = 120 * lvl(), btns = [];
+    if (S.score >= kp) btns.push([`Key (−${kp})`, () => { S.score -= kp; S.keys++; persist(); render(); say('Fennick hands you a brass key. “Pleasure doing business!”'); }]);
+    if (S.score >= hp) btns.push([`Hint (−${hp})`, () => { S.score -= hp; S.hints++; persist(); render(); say('Fennick whispers a trade secret: +1 hint.'); }]);
+    btns.push(['Just looking', null]);
+    n.card(`${n.line}<p>For sale: a key for <b>${kp}</b> points, a hint for <b>${hp}</b> points.</p>${btns.length === 1 ? '<p class="small">You cannot afford anything yet.</p>' : ''}`, btns);
+  },
+
+  trickster(n) {
+    if (n.done) return n.card(`${n.line}<p>“You've had your game. Off you go, before I change my mind.”</p>`);
+    const prize = 1000 * lvl(), up = !n.f.last;
+    n.card(`<p>Quibble flips a coin that never seems to land.</p><p>“A game! Three questions, the <b>hardest</b> in the castle. No hints. Get all three and I'll give you ${prize} points and a key${up ? ', and whisk you straight up to the next floor' : ''}.”</p><p>“Miss even one, and… <b>poof!</b> Back to the very first floor you go. Fresh castle, same score. Heh heh.”</p>`,
+      [['Play', () => trick(n, 1)], ['No way', null]]);
+  },
+
+  sphinx(n) {
+    const guard = n.f.last && n.c === n.f.exit;
+    if (guard && n.f.guardPassed) return n.card(`<p>“You have answered well. The throne awaits, champion.”</p>`, [['Climb to the throne', climb], ['Not yet', null]]);
+    if (!guard && n.done) return n.card(`${n.line}<p>“One riddle per traveler. Go.”</p>`);
+    const intro = guard
+      ? `<p>The Great Sphinx lies across the foot of the stairs, tail twitching.</p><p>“None reach the throne without answering me. Fail and I take a toll, but you may ask again.”</p>`
+      : `<p>“Answer my riddle, and I will reward you richly. Fail, and I take something of yours.”</p>`;
+    n.card(intro, [['Hear the riddle', () => {
+      const [text, answer, ...wrong] = pickRiddle();
+      quiz({ head: guard ? 'The Great Sphinx' : 'Riddle of the Sphinx', sub: 'Riddle', text, answer, wrong, timed: false, onAnswer(ok) {
+        if (ok) S.riddles++;
+        if (guard) {
+          if (ok) { n.f.guardPassed = true; return [`<span style="color:var(--green)">“Correct.”</span> The Sphinx rises and steps aside. ${award('points', 500 * lvl())}`, () => say('The way to the throne is open. Climb the stairs!')]; }
+          const t = fine(150 * lvl());
+          return [`<span style="color:var(--red)">“Wrong.”</span> The answer was <b>${answer}</b>. The Sphinx takes a toll of ${t} points. “Return when you are ready.”`];
+        }
+        n.finish();
+        if (ok) return [`<span style="color:var(--green)">“Well reasoned, mortal.”</span> ${[award('key', 1), award('hint', 1), award('points', 250 * lvl())].join(', ')}.`];
+        const took = S.hints > 0 ? (S.hints--, 'one of your hints') : `${fine(100 * lvl())} points`;
+        return [`<span style="color:var(--red)">“Wrong.”</span> The answer was <b>${answer}</b>. The Sphinx takes ${took} and looks smug.`];
+      } });
+    }], [guard ? 'Not yet' : 'Back away', null]]);
+  }
+};
+
+function trick(n, round) {
+  const [cat, ql, text, answer, ...wrong] = pickHard();
+  quiz({ head: window.CATEGORIES[cat], sub: `Trickster · ${round} of 3`, text, answer, wrong, timed: true, hint: false, onAnswer(ok, picked) {
+    S.answered++;
+    if (!ok) {
+      n.finish();
+      return [`<span style="color:var(--red)">${picked === null ? 'Too slow!' : '“Wrong!”'}</span> The answer was <b>${answer}</b>. Quibble snaps his fingers…`, sendBack];
+    }
+    S.correct++;
+    if (round < 3) return [`<span style="color:var(--green)">“Lucky guess.”</span> Two-thirds of the way to glory. ${3 - round} to go.`, () => trick(n, round + 1)];
+    n.finish();
+    const got = [award('points', 1000 * lvl()), award('key', 1)].join(', ');
+    if (n.f.last) return [`<span style="color:var(--green)">“Bah! All three!”</span> ${got}.`];
+    return [`<span style="color:var(--green)">“Bah! All three!”</span> ${got}. Quibble snaps his fingers and the floor drops away beneath you…`, () => ascend('The trickster whisks you up a whole floor!')];
+  } });
+}
+
+// The trickster's punishment: a brand-new castle from floor 1, keeping score, keys and hints.
+function sendBack() {
+  const n = F().size;
+  busy = true; $('view').classList.add('fade');
+  setTimeout(() => {
+    S.floors = [makeFloor(n, 0, randomCorner(n), S.totalFloors === 1)];
+    S.floor = 0; S.pos = F().entry; S.facing = faceInward(S.pos);
+    persist(); render(); $('view').classList.remove('fade'); busy = false;
+    say(`POOF! You tumble through a trapdoor and land back on floor 1 of ${S.totalFloors}. The castle has rearranged itself. Your score, keys and hints are still yours.`);
+  }, 350);
+}
+
+function pickUp() {
+  if (blocked()) return;
+  const f = F();
+  for (const q of Object.values(f.quests)) if (q.at === S.pos && !q.have) {
+    q.have = true; S.score += 50;
+    persist(); render();
+    say(`You pick up ${CHARS[q.kind].name}'s ${QUESTS[q.kind].name}. (+50) Take it back to them!`);
+  }
+}
+
+// ------------------------------------------------------------ objects
+function useObject() {
+  if (blocked()) return;
+  const ob = F().objects[S.pos];
+  if (ob.type === 'well') return wishingWell(ob);
+  if (ob.opened) return say(ob.mimic ? 'The mimic snores contentedly. It has nothing more to give.' : 'The chest is empty.');
+  info(`<img class="wide" style="max-width:200px;margin:0 auto" src="assets/chest_closed.png" alt=""><h2 style="margin-top:10px">A treasure chest</h2><p>Iron-bound and heavy. Most chests in this castle hold treasure. A few hold teeth.</p>`,
+    [['Open it', () => openChest(ob)], ['Leave it', null]]);
+}
+
+function openChest(ob) {
+  ob.opened = true;
+  if (!ob.mimic) {
+    const r = Math.random();
+    const got = r < 0.2 ? award('key', 1) : r < 0.55 ? award('hint', 1) : award('points', (100 + 50 * rnd(4)) * lvl());
+    persist(); render();
+    return info(`<img class="wide" style="max-width:200px;margin:0 auto" src="assets/chest_open.png" alt=""><h2 style="margin-top:10px">Treasure!</h2><p><b>${got}.</b></p>`, [['Splendid', null]]);
+  }
+  persist(); render();
+  info(`<img class="wide" style="max-width:200px;margin:0 auto" src="assets/chest_mimic.png" alt=""><h2 style="margin-top:10px">It's a mimic!</h2><p>The lid snaps open to reveal rows of teeth. “QUESTION!” it gurgles. “ANSWER OR BE NIBBLED!”</p>`, [['Face it', () => {
+    const [cat, ql, text, answer, ...wrong] = pickQuestion();
+    quiz({ head: window.CATEGORIES[cat], sub: 'The mimic asks', text, answer, wrong, timed: true, onAnswer(ok) {
+      S.answered++;
+      if (ok) { S.correct++; return [`<span style="color:var(--green)">The mimic whimpers and coughs up its hoard.</span> ${award('key', 1)}, ${award('points', 150 * lvl())}.`]; }
+      return [`<span style="color:var(--red)">CHOMP!</span> The answer was <b>${answer}</b>. The mimic nibbles your purse: −${fine(100 * lvl())} points.`];
+    } });
+  }]]);
+}
+
+function wishingWell(ob) {
+  const cost = 50 * lvl(), left = 5 - (ob.tosses || 0);
+  const pic = `<img class="wide" style="max-width:180px;margin:0 auto" src="assets/well.png" alt=""><h2 style="margin-top:10px">The wishing well</h2>`;
+  if (left <= 0) return info(`${pic}<p>You lean over the edge. The well is dry now, and your wishes echo back unanswered.</p>`, [['Back', null]]);
+  if (S.score < cost) return info(`${pic}<p>A coin costs ${cost} points to toss, and your purse is too light.</p>`, [['Back', null]]);
+  info(`${pic}<p>Toss a coin and make a wish? It costs <b>${cost}</b> points. The well has ${left} wish${left > 1 ? 'es' : ''} left in it.</p>`, [['Toss a coin', () => {
+    S.score -= cost; ob.tosses = (ob.tosses || 0) + 1;
+    const r = Math.random();
+    const res = r < 0.08 ? `A key floats up on a lily pad! <b>${award('key', 1)}.</b>`
+      : r < 0.24 ? `A voice burbles up from the depths with advice. <b>${award('hint', 1)}.</b>`
+      : r < 0.46 ? `Coins come splashing back up! <b>${award('points', cost * 3)}.</b>`
+      : '<i>Plink.</i> Nothing happens. Perhaps the wish is saving itself for later.';
+    persist(); render();
+    info(`${pic}<p>${res}</p>`, [['Again', () => wishingWell(ob)], ['Walk away', null]]);
+  }], ['Walk away', null]]);
 }
 
 function viewPainting() {
   if (blocked()) return;
-  const i = F().paintings[S.pos], kind = PAINT_KIND[i % PAINT_KIND.length];
+  const f = F(), i = f.paintings[S.pos], kind = PAINT_KIND[i % PAINT_KIND.length];
   const title = PAINT_TITLES[kind][Math.floor(i / PAINT_KIND.length) % 4];
   const painter = PAINTERS[i % PAINTERS.length];
-  info(`<img class="wide" src="assets/painting_${String(i).padStart(2, '0')}.png" alt=""><h2 style="margin-top:10px">${title}</h2><p class="small">${painter}. Oil on panel, from the castle collection.</p>`, [['Back', null]]);
+  let secret = '';
+  if (S.pos === f.clue && !f.clueFound) {
+    f.clueFound = true;
+    secret = `<p>The painting hangs crooked. When you straighten it, something rattles behind the frame. Scratched into the stone are the words <i>“The stair lies ${bearing(S.pos, f.exit)}.”</i> A few coins are tucked into the crack. <b>${award('points', 100 * lvl())}.</b></p>`;
+    persist(); render();
+  }
+  info(`<img class="wide" src="assets/painting_${String(i).padStart(2, '0')}.png" alt=""><h2 style="margin-top:10px">${title}</h2><p class="small">${painter}. Oil on panel, from the castle collection.</p>${secret}`, [['Back', null]]);
 }
 
 function climb() {
   if (blocked() || S.pos !== F().exit) return;
+  if (F().last && !F().guardPassed) return talk();
   const bonus = 300 * S.settings.level;
   S.score += bonus;
   if (S.floor + 1 >= S.totalFloors) return win(bonus);
+  ascend(`You climb to floor ${S.floor + 2} of ${S.totalFloors}. (+${bonus}) The rooms here look different…`);
+}
+
+function ascend(msg) {
   busy = true; $('view').classList.add('fade');
   setTimeout(() => {
     const prevExit = F().exit, n = F().size;
-    S.floors.push(makeFloor(n, S.floor + 1, prevExit));
+    S.floors.push(makeFloor(n, S.floor + 1, prevExit, S.floor + 2 >= S.totalFloors));
     S.floors[S.floor] = { size: n, number: S.floor, done: true };   // drop old floor detail to keep saves small
     S.floor++;
     S.pos = F().entry; S.facing = faceInward(S.pos);
     persist(); render(); $('view').classList.remove('fade'); busy = false;
-    say(`You climb to floor ${S.floor + 1} of ${S.totalFloors}. (+${bonus}) The rooms here look different…`);
+    say(`${msg}${F().last ? ' This is the top floor. Somewhere a great beast is waiting.' : ''}`);
   }, 250);
 }
 
 // ------------------------------------------------------------ question dialog
-function ask(d) {
-  const [cat, lvl, text, answer, ...wrong] = pickQuestion();
-  const order = shuffle([answer, ...wrong]);
-  $('qCat').textContent = window.CATEGORIES[cat];
-  $('qLvl').textContent = LEVELS[lvl];
-  $('qText').textContent = text;
+// Shared by doors, riddles, mimics and the owl. onAnswer(correct, picked) returns [verdict html, after-continue fn].
+function quiz(o) {
+  const { answer } = o;
+  const order = shuffle([answer, ...o.wrong]);
+  $('qCat').textContent = o.head;
+  $('qLvl').textContent = o.sub || '';
+  $('qText').textContent = o.text;
   $('qVerdict').textContent = '';
   $('qOk').hidden = true;
-  const hb = $('qHint'); hb.hidden = false; hb.disabled = S.hints < 1; hb.textContent = `Use a hint (${S.hints})`;
+  const hb = $('qHint'); hb.hidden = o.hint === false; hb.disabled = S.hints < 1; hb.textContent = `Use a hint (${S.hints})`;
   const box = $('qOpts'); box.innerHTML = '';
   let done = false;
   const finish = (picked) => {
     if (done) return; done = true;
     clearInterval(timerId);
     hb.hidden = true;
-    [...box.children].forEach(b => { b.disabled = true; if (b.textContent === answer) b.classList.add('right'); });
-    S.answered++;
-    if (picked === answer) {
-      S.correct++; S.streak++; S.best = Math.max(S.best, S.streak);
-      const L = S.settings.level, pts = 100 * L + 20 * L * Math.min(S.streak - 1, 5);
-      S.score += pts; setDoor(S.pos, d, OPEN);
-      $('qVerdict').innerHTML = `<span style="color:var(--green)">Correct! The door swings open.</span> +${pts}${S.streak > 1 ? ` · streak ${S.streak}` : ''}`;
-      $('qOk').onclick = () => { close('qOv'); persist(); render(); walk(d); };
-    } else {
-      S.streak = 0; setDoor(S.pos, d, LOCKED);
-      [...box.children].forEach(b => { if (b.textContent === picked) b.classList.add('wrong'); });
-      $('qVerdict').innerHTML = `<span style="color:var(--red)">${picked === null ? 'Time is up!' : 'Wrong.'}</span> The answer was <b>${answer}</b>. The door slams and locks.`;
-      $('qOk').onclick = () => { close('qOv'); persist(); render(); say('That door is barred now. Find another way, or a key.'); checkTrapped(); };
-    }
+    [...box.children].forEach(b => { b.disabled = true; if (b.textContent === answer) b.classList.add('right'); if (picked !== answer && b.textContent === picked) b.classList.add('wrong'); });
+    const [html, next] = o.onAnswer(picked === answer, picked);
+    $('qVerdict').innerHTML = html;
+    $('qOk').onclick = () => { close('qOv'); persist(); render(); if (next) next(); else checkTrapped(); };
     $('qOk').hidden = false; persist();
   };
-  order.forEach(o => { const b = document.createElement('button'); b.textContent = o; b.onclick = () => finish(o); box.appendChild(b); });
+  order.forEach(t => { const b = document.createElement('button'); b.textContent = t; b.onclick = () => finish(t); box.appendChild(b); });
   hb.onclick = () => {
     if (S.hints < 1 || done) return;
     S.hints--; hb.disabled = true; hb.textContent = `Use a hint (${S.hints})`;
     shuffle([...box.children].filter(b => b.textContent !== answer)).slice(0, 2).forEach(b => { b.classList.add('gone'); b.disabled = true; });
     $('hints').textContent = S.hints;
   };
-  // timer
-  const total = S.settings.timer ? TIMER[S.settings.level] : 0;
+  const total = o.timed && S.settings.timer ? TIMER[S.settings.level] : 0;
   $('qTimer').style.display = total ? 'block' : 'none';
   $('qTimer').classList.remove('low');
   clearInterval(timerId);
@@ -370,6 +659,27 @@ function ask(d) {
   $('qOv').classList.add('show');
 }
 
+function ask(d) {
+  const [cat, ql, text, answer, ...wrong] = pickQuestion();
+  quiz({ head: window.CATEGORIES[cat], sub: LEVELS[ql], text, answer, wrong, timed: true, onAnswer(ok, picked) {
+    S.answered++;
+    let bet = '';
+    if (S.wager) {
+      const w = S.wager; S.wager = 0;
+      bet = ok ? ` Wren grumbles and pays the wager: ${award('points', w)}.` : ` You lose the bard's wager: −${fine(w)}.`;
+    }
+    if (ok) {
+      S.correct++; S.streak++; S.best = Math.max(S.best, S.streak);
+      const L = S.settings.level, pts = 100 * L + 20 * L * Math.min(S.streak - 1, 5);
+      S.score += pts; setDoor(S.pos, d, OPEN);
+      return [`<span style="color:var(--green)">Correct! The door swings open.</span> +${pts}${S.streak > 1 ? ` · streak ${S.streak}` : ''}${bet}`, () => walk(d)];
+    }
+    S.streak = 0; setDoor(S.pos, d, LOCKED);
+    return [`<span style="color:var(--red)">${picked === null ? 'Time is up!' : 'Wrong.'}</span> The answer was <b>${answer}</b>. The door slams and locks.${bet}`,
+      () => { say('That door is barred now. Find another way, or a key.'); checkTrapped(); }];
+  } });
+}
+
 // ------------------------------------------------------------ win / lose
 function reachable() {
   const seen = new Set([S.pos]), q = [S.pos];
@@ -377,10 +687,19 @@ function reachable() {
   return seen;
 }
 function checkTrapped() {
+  if (blocked() || S.over) return;
   const f = F(), r = reachable();
   if (r.has(f.exit) || S.keys > 0) return;
   if (f.keys.some(k => r.has(k))) return;
-  if (Object.keys(f.chars).some(k => r.has(+k) && !f.talked.includes(f.chars[k] === 'ghost' ? 'ghost' : f.chars[k] + '@' + k))) return;
+  const helps = k => {
+    const kind = f.chars[k];
+    if (kind === 'merchant') return S.score >= 250 * lvl();
+    if (kind === 'sphinx' && +k === f.exit || kind === 'trickster') return false;
+    if (QUESTS[kind]) { const q = f.quests[k]; return !q || !q.done && (q.have || r.has(q.at)); }
+    return !f.talked.includes(kind === 'ghost' ? 'ghost' : kind + '@' + k);
+  };
+  if (Object.keys(f.chars).some(k => r.has(+k) && helps(k))) return;
+  if (Object.keys(f.objects).some(k => r.has(+k) && (f.objects[k].type === 'chest' ? !f.objects[k].opened : (f.objects[k].tosses || 0) < 5 && S.score >= 50 * lvl()))) return;
   const price = 400 * S.settings.level;
   const opts = [];
   if (S.score >= price) opts.push([`Buy a skeleton key (−${price})`, () => { S.score -= price; S.keys++; persist(); render(); say('A shadowy locksmith sells you a skeleton key.'); }]);
@@ -440,7 +759,7 @@ function showMenu() {
     <div class="chips" id="mCats">${Object.entries(cats).map(([k, v]) => `<button data-v="${k}" class="${settings.cats.includes(k) ? 'sel' : ''}">${v}</button>`).join('')}</div>
     <div class="seg"><button id="mTimer" class="${settings.timer ? 'sel' : ''}">⏳ Timer ${settings.timer ? 'on' : 'off'}</button><button id="mScores">🏆 High scores</button></div>`;
   const btns = [];
-  if (saved && !saved.over) btns.push([`Continue (floor ${saved.floor + 1}, ${saved.score} pts)`, () => { S = saved; render(); say('Welcome back. The castle remembers you.'); }]);
+  if (saved && !saved.over) btns.push([`Continue (floor ${saved.floor + 1}, ${saved.score} pts)`, () => { S = normalize(saved); render(); say('Welcome back. The castle remembers you.'); }]);
   btns.push(['Enter a new castle', () => { saveJSON('coq_settings', settings); newGame(); }]);
   if (S && !S.over && !(saved && !saved.over)) btns.push(['Back to game', null]);
   info(html, btns);
@@ -472,8 +791,8 @@ document.addEventListener('keydown', e => {
 
 // Draw a castle behind the menu so the page never looks empty.
 const resume = loadJSON(SAVE_KEY, null);
-if (resume && !resume.over && resume.v === 2) { S = resume; render(); }
+if (resume && !resume.over && resume.v === 2) { S = normalize(resume); render(); }
 else { newGame(); dropKey(SAVE_KEY); }
 showMenu();
-window.__coq = { get state() { return S; }, ask, tryDoor, climb, talk };
+window.__coq = { get state() { return S; }, ask, tryDoor, climb, talk, useObject, viewPainting, pickUp };
 })();

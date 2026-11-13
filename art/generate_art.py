@@ -361,6 +361,60 @@ def character(kind, rng):
             d.line(P([(cx, 140), (cx, 152)]), fill=(0, 0, 0), width=3 * S)
         d.polygon(P([(116, 160), (124, 160), (120, 166)]), fill=(230, 150, 160))
         d.line(P([(170, 280), (200, 230), (196, 200)]), fill=(120, 116, 112), width=12 * S, joint="curve")
+    elif kind == "merchant":
+        body((150, 96, 40), (90, 40, 110), beard=(70, 50, 36))
+        d.polygon(P([(84, 96), (156, 96), (150, 62), (120, 48), (90, 62)]), fill=(90, 40, 110))
+        d.rectangle([v * S for v in (82, 88, 158, 100)], fill=(230, 190, 70))
+        E((112, 52, 128, 68), fill=(200, 40, 60))
+        E((20, 220, 82, 292), fill=(170, 140, 90))
+        d.polygon(P([(36, 224), (66, 224), (60, 206), (42, 206)]), fill=(150, 120, 76))
+        d.line(P([(34, 214), (68, 214)]), fill=(90, 60, 30), width=3 * S)
+        for x, y in [(168, 262), (180, 270), (174, 252), (190, 258)]:
+            E((x - 8, y - 5, x + 8, y + 5), fill=(240, 200, 70), outline=(150, 110, 30))
+    elif kind == "trickster":
+        body((70, 30, 90), (60, 170, 90))
+        d.polygon(P([(120, 150), (155, 150), (190, 304), (120, 304)]), fill=(40, 120, 70))
+        for i in range(4):                                       # harlequin diamonds
+            y = 170 + i * 32
+            d.polygon(P([(120, y), (132, y + 16), (120, y + 32), (108, y + 16)]), fill=(230, 190, 60) if i % 2 else (20, 14, 24))
+        d.polygon(P([(76, 160), (84, 70), (120, 40), (156, 70), (164, 160), (148, 150), (146, 90), (94, 90), (92, 150)]), fill=(50, 20, 66))  # hood
+        d.polygon(P([(94, 98), (146, 98), (150, 116), (132, 122), (120, 114), (108, 122), (90, 116)]), fill=(20, 14, 24))  # mask
+        for cx in (108, 132):
+            E((cx - 5, 104, cx + 5, 112), fill=(250, 220, 80))
+        d.arc([v * S for v in (100, 116, 140, 142)], 15, 165, fill=(40, 20, 30), width=3 * S)   # wide grin
+        d.polygon(P([(118, 40), (150, 6), (140, 30), (166, 22)]), fill=(60, 170, 90))
+        E((160, 16, 172, 28), fill=(230, 190, 60))
+        for i, (x, y) in enumerate([(176, 200), (190, 176), (204, 196)]):   # juggled orbs
+            E((x - 8, y - 8, x + 8, y + 8), fill=[(220, 60, 60), (80, 160, 230), (240, 210, 70)][i])
+    elif kind == "sphinx":
+        sand, shade, gold, blue = (214, 170, 100), (176, 132, 70), (232, 194, 76), (40, 70, 150)
+        for sx in (1, -1):   # wings fanning up behind
+            cx = 120
+            for i in range(5):
+                tip = (cx + sx * (70 + i * 6), 40 + i * 26)
+                d.polygon(P([(cx + sx * 20, 160), tip, (cx + sx * (62 + i * 6), 70 + i * 26)]),
+                          fill=tint(gold, 0.75 + i * 0.05) if i % 2 else (190, 150, 70))
+        E((44, 230, 196, 306), fill=shade)                       # haunches
+        d.polygon(P([(86, 150), (154, 150), (170, 300), (70, 300)]), fill=sand)  # chest
+        for x in (82, 132):                                      # front legs and paws
+            d.rectangle([v * S for v in (x, 220, x + 26, 300)], fill=sand, outline=shade, width=2 * S)
+            E((x - 6, 288, x + 32, 308), fill=shade)
+        d.line(P([(196, 290), (220, 250), (214, 226)]), fill=shade, width=8 * S, joint="curve")
+        E((206, 216, 222, 234), fill=(150, 100, 50))
+        # nemes headdress
+        d.polygon(P([(76, 170), (84, 90), (120, 66), (156, 90), (164, 170), (150, 176), (140, 120), (100, 120), (90, 176)]), fill=gold)
+        for y in range(96, 176, 12):
+            d.line(P([(80, y), (98, y + 4)]), fill=blue, width=4 * S)
+            d.line(P([(160, y), (142, y + 4)]), fill=blue, width=4 * S)
+        E((96, 86, 144, 150), fill=(200, 150, 96))               # face
+        d.rectangle([v * S for v in (92, 84, 148, 94)], fill=blue)
+        for cx in (108, 132):
+            E((cx - 7, 108, cx + 7, 116), fill=(250, 240, 220))
+            E((cx - 3, 108, cx + 3, 116), fill=(30, 20, 20))
+            d.line(P([(cx - 9, 104), (cx + 9, 104)]), fill=(40, 30, 30), width=2 * S)
+        d.arc([v * S for v in (110, 124, 130, 138)], 20, 160, fill=(110, 50, 40), width=2 * S)
+        d.rectangle([v * S for v in (114, 146, 126, 168)], fill=blue)  # braided beard
+        E((112, 62, 128, 78), fill=(230, 60, 60))                # uraeus jewel
     elif kind == "ghost":
         ghost = Image.new("RGBA", img.size, (0, 0, 0, 0))
         g = ImageDraw.Draw(ghost)
@@ -375,7 +429,106 @@ def character(kind, rng):
     return img.resize((240, 320), Image.LANCZOS)
 
 
-CHARACTERS = ["jester", "knight", "wizard", "monk", "cook", "bard", "lady", "alchemist", "parrot", "owl", "cat", "ghost"]
+# ---------------------------------------------------------------- props
+def chest(state):
+    """state: closed, open or mimic."""
+    S = 2
+    img = Image.new("RGBA", (200 * S, 160 * S), (0, 0, 0, 0))
+    d = ImageDraw.Draw(img)
+    R = lambda *b: [v * S for v in b]
+    wood, dark, iron, gold = (128, 78, 36), (84, 50, 22), (60, 60, 66), (226, 186, 70)
+    d.ellipse(R(14, 140, 186, 158), fill=(0, 0, 0, 90))
+    d.rectangle(R(20, 80, 180, 150), fill=wood)
+    for y in (96, 116, 136):
+        d.line(R(20, y, 180, y), fill=dark, width=2 * S)
+    if state == "closed":
+        d.chord(R(20, 30, 180, 130), 180, 360, fill=tint(wood, 1.1))
+        d.rectangle(R(20, 78, 180, 86), fill=iron)
+        for x in (40, 152):
+            d.rectangle(R(x, 34, x + 8, 150), fill=iron)
+        d.rectangle(R(88, 70, 112, 100), fill=gold)
+        d.ellipse(R(96, 80, 104, 88), fill=(40, 30, 20))
+    else:
+        d.polygon(R(20, 80, 180, 80, 166, 20, 34, 20), fill=dark)       # lid flipped back
+        d.rectangle(R(30, 76, 170, 84), fill=(30, 20, 12))
+        for x in (40, 152):
+            d.rectangle(R(x, 80, x + 8, 150), fill=iron)
+        if state == "open":
+            for i in range(14):
+                x, y = 36 + (i * 37) % 128, 76 + (i % 3) * 3
+                d.ellipse(R(x, y - 4, x + 14, y + 6), fill=gold, outline=(150, 110, 30))
+        else:
+            d.rectangle(R(30, 66, 170, 84), fill=(150, 20, 30))
+            for i in range(9):
+                x = 30 + i * 15.5
+                d.polygon(R(x, 84, x + 15, 84, x + 7.5, 70), fill=(250, 246, 230))
+                d.polygon(R(x, 20, x + 15, 20, x + 7.5, 36), fill=(250, 246, 230))
+            d.polygon(R(70, 84, 130, 84, 150, 120, 110, 104, 96, 130), fill=(210, 70, 90))  # tongue
+            for cx in (64, 136):
+                d.ellipse(R(cx - 12, 2, cx + 12, 26), fill=(250, 230, 80))
+                d.ellipse(R(cx - 4, 6, cx + 4, 22), fill=(10, 10, 10))
+    return img.resize((200, 160), Image.LANCZOS)
+
+
+def well():
+    S = 2
+    img = Image.new("RGBA", (220 * S, 220 * S), (0, 0, 0, 0))
+    d = ImageDraw.Draw(img)
+    R = lambda *b: [v * S for v in b]
+    d.ellipse(R(20, 196, 200, 216), fill=(0, 0, 0, 90))
+    for x in (40, 170):                                   # posts
+        d.rectangle(R(x, 30, x + 10, 150), fill=(100, 66, 34))
+    d.polygon(R(20, 40, 200, 40, 110, 4), fill=(140, 40, 36))   # roof
+    d.line(R(45, 70, 175, 70), fill=(90, 60, 30), width=5 * S)  # crank axle
+    d.line(R(110, 70, 110, 110), fill=(200, 190, 160), width=2 * S)
+    d.rectangle(R(100, 108, 120, 126), fill=(120, 80, 40))       # bucket
+    d.rectangle(R(30, 130, 190, 200), fill=(120, 116, 110))
+    d.ellipse(R(30, 116, 190, 146), fill=(150, 146, 140))
+    d.ellipse(R(42, 120, 178, 142), fill=(20, 40, 60))
+    d.ellipse(R(70, 124, 110, 134), fill=(90, 140, 190, 140))
+    for row in range(3):
+        y = 150 + row * 16
+        for i in range(6):
+            x = 30 + (i * 28 + (14 if row % 2 else 0)) % 160
+            d.rectangle(R(x, y, min(x + 26, 190), y + 14), outline=(90, 86, 80), width=S)
+    return img.resize((220, 220), Image.LANCZOS)
+
+
+def item(kind):
+    S = 3
+    img = Image.new("RGBA", (96 * S, 96 * S), (0, 0, 0, 0))
+    d = ImageDraw.Draw(img)
+    R = lambda *b: [v * S for v in b]
+    d.ellipse(R(14, 80, 82, 92), fill=(0, 0, 0, 80))
+    gold = (236, 196, 76)
+    if kind == "ladle":
+        d.line(R(70, 10, 46, 60), fill=gold, width=7 * S)
+        d.ellipse(R(20, 52, 60, 84), fill=gold, outline=(150, 110, 30), width=2 * S)
+        d.ellipse(R(28, 58, 52, 74), fill=(250, 226, 140))
+    elif kind == "book":
+        d.polygon(R(14, 30, 48, 22, 48, 82, 14, 88), fill=(130, 30, 40))
+        d.polygon(R(82, 30, 48, 22, 48, 82, 82, 88), fill=(150, 36, 46))
+        d.polygon(R(20, 32, 46, 26, 46, 76, 20, 82), fill=(246, 236, 210))
+        d.polygon(R(76, 32, 50, 26, 50, 76, 76, 82), fill=(246, 236, 210))
+        for y in (38, 46, 54, 62):
+            d.line(R(24, y, 42, y - 4), fill=(120, 100, 80), width=S)
+            d.line(R(54, y - 4, 72, y), fill=(120, 100, 80), width=S)
+    elif kind == "ring":
+        d.ellipse(R(22, 40, 74, 86), outline=gold, width=7 * S)
+        d.polygon(R(48, 18, 62, 32, 48, 46, 34, 32), fill=(80, 200, 240), outline=(220, 250, 255))
+    elif kind == "helmet":
+        d.chord(R(16, 18, 80, 90), 180, 360, fill=(176, 182, 192))
+        d.rectangle(R(16, 52, 80, 82), fill=(150, 156, 168))
+        d.rectangle(R(24, 58, 72, 64), fill=(30, 30, 36))
+        d.line(R(48, 64, 48, 82), fill=(30, 30, 36), width=3 * S)
+        d.polygon(R(48, 18, 56, 4, 66, 0, 58, 16), fill=(200, 40, 50))
+    return img.resize((96, 96), Image.LANCZOS)
+
+
+ITEMS = ["ladle", "book", "ring", "helmet"]
+
+
+CHARACTERS = ["jester", "knight", "wizard", "monk", "cook", "bard", "lady", "alchemist", "parrot", "owl", "cat", "ghost", "merchant", "sphinx", "trickster"]
 
 
 # ---------------------------------------------------------------- paintings
@@ -560,6 +713,11 @@ def main():
     for i in range(a.paintings):
         rng = np.random.default_rng(a.seed + 200 + i)
         save(painting(PAINTING_KINDS[i % len(PAINTING_KINDS)], rng), f"painting_{i:02d}.png")
+    for state in ("closed", "open", "mimic"):
+        save(chest(state), f"chest_{state}.png")
+    save(well(), "well.png")
+    for kind in ITEMS:
+        save(item(kind), f"item_{kind}.png")
     save(stairs(), "stairs.png")
     save(title_art(a.seed + 300), "title.jpg", quality=88)
     save(throne_room(a.seed + 400).convert("RGB"), "throne.jpg", quality=86)
